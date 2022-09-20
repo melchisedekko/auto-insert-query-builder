@@ -48,5 +48,9 @@
 	},
 	"dependencies": {
 		"rxjs": "^7.5.6"
-	}
+	},
+	"repository": {
+		"type": "github",
+		"url": "https://github.com/melchisedekko/auto-insert-query-builder.git"
+	  }
 }
