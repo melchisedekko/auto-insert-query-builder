@@ -8,6 +8,7 @@ import * as vscode from 'vscode';
 // Import the module and reference it with the alias azdata in your code below
 
 import * as azdata from 'azdata';
+import { firstValueFrom, ReplaySubject, take } from 'rxjs';
 
 interface ColumnsData {
     [key: string]: any
@@ -17,22 +18,8 @@ interface ColumnsData {
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-    context.subscriptions.push(
-        vscode.commands.registerCommand('auto-insert-query-builder.build-insert-with-data', (commandContext: vscode.Uri | azdata.ObjectExplorerContext) => {
-            if (!commandContext) {
-                vscode.window.showErrorMessage('No file was specified for the View in SandDance command');
-                return;
-            }
-            if (commandContext instanceof vscode.Uri) {
-                vscode.window.showInformationMessage('viewFileUriInSandDance');
-            } else if (commandContext.nodeInfo) {
-                // This is a call from the object explorer right-click.
-                vscode.window.showInformationMessage('downloadAndViewInSandDance');
-            }
-        },
-        ),
-    );
 
+   const fromSubj$ = new ReplaySubject<string>(1);
     //make the visualizer icon visible
    vscode.commands.executeCommand('setContext', 'showVisualizer', true);
 
@@ -57,8 +44,17 @@ export function activate(context: vscode.ExtensionContext) {
 
                 // Create Json
                 let jsonArray = createJsonArrayFromRecordSet(rows, rowsCount, columns)
+                let possibleFrom = await firstValueFrom<string>(fromSubj$)
 
-                azdata.queryeditor.openQueryDocument({content: buildInsertInto('UNKNOUN', columns.filter(y => y.columnName != 'RowGuid'), jsonArray)})
+                azdata.queryeditor.openQueryDocument({content: buildInsertInto(possibleFrom ?? 'UNKNOUN', columns.filter(y => y.columnName != 'RowGuid'), jsonArray)})
+            }
+            if (type === 'queryStart') {
+               let queryEditorText = vscode.window.activeTextEditor?.document.getText()
+               if (queryEditorText && queryEditorText.toUpperCase().includes('FROM')){
+                   const firstOccurenceIndex = queryEditorText.toUpperCase().indexOf('FROM')
+                   const possibleFrom = queryEditorText.substring(firstOccurenceIndex).split(' ')[1]
+                   fromSubj$.next(possibleFrom)
+               }
             }
         },
     });
